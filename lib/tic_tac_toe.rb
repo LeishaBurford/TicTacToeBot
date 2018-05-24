@@ -121,10 +121,14 @@ class TicTacToe
       if player == 'x'
         # player then bot
         turn
+        if over?
+          break
         botTurn
       else
         # bot then player
         botTurn
+        if over?
+          break
         turn
       end
     end
@@ -138,14 +142,22 @@ class TicTacToe
 
   # method to determine bot's optimal move
   def botTurn
-    # check if we can win with one move
-    if winOrBlock(currentPlayer)
-      displayBoard
-      return 
-    # check if we need to block
-    elsif winOrBlock( (currentPlayer == 'X')? 'O' : 'X')
-      displayBoard
-      return
+    # check if we can win with one move or need to block
+    if positions = winOrBlock?(currentPlayer) || positions = winOrBlock?( (currentPlayer == 'X')? 'O' : 'X')
+      takeLastSpot(positions)
+    # check if there is a chance for bot to create a fork, or block oponent from making fork 
+    elsif forks = possibleFork?(currentPlayer) || forks = possibleFork?((currentPlayer == 'X')? 'O' : 'X')
+      puts "forks is #{forks}"
+      
+      if forks.size == 1
+        # find the most common index and move there
+        commonElement = forks.max_by {|i| forks.count(i)}
+        move(commonElement, currentPlayer)
+      else
+        # more than one fork possible,
+        # find optimal block point, move there
+        move(blockPoint(forks), currentPlayer)
+      end
     else
       # testing just pick the next avaliable move
       if !over?
@@ -155,39 +167,75 @@ class TicTacToe
         end
         move(i, currentPlayer)
       end
-      
-      displayBoard
     end
+    puts "#{(currentPlayer == 'X')? 'O': 'X'}'s move: "
+    displayBoard
+  end
+
+  # helper methods for the bot
+
+  # finds the optimal place to put tile when multiple forks are possible
+  def blockPoint(forks)
+    # this keeps track of the tiles that each fork has in common
+    # the most frequent and unoccupied index will be returned
+    commonIndicies = forks[0] # initializing
+    # intersect each of the forks to find a the tile they all depend on
+    for i in 1 ... forks.size
+      commonIndicies &= forks[i]
+    end
+    puts "commonIndices are: #{commonIndicies}"
+    validPositions = commonIndicies.select {|i| !position_taken?(i)}
+    puts "validPositions are: #{validPositions}"
+    # finds the most frequent index
+    return validPositions.max_by {|i| validPositions.count(i)}
+  end
+
+  def possibleFork?(token) 
+    availableSpaces = (0...9).select {|i| !position_taken?(i)}
+    forks = []
+    for i in 0 ... availableSpaces.size
+      # temporarily move to this position
+      move(availableSpaces[i], token)
+      fork = twoInARow?(token, true)
+      if fork
+        forks.append(fork) 
+      end
+      undoMove(availableSpaces[i])
+    end
+    
+    return (forks.size == 0)? false : forks
+  end
+
+  # returns the indicated index to " "
+  def undoMove(index)
+    @board[index] = " "
   end
 
   # either win the game or block the opponent
-  def winOrBlock(token)
-    positions = twoInARow(token)
+  def winOrBlock?(token)
+    positions = twoInARow?(token, false)
     if positions
-      
-      takeLastSpot(positions, currentPlayer)
-      return true
+      return positions
     end
     return false
   end
 
-
-  # helper methods for the bot
-
   # goes through the provided array and fills the available spot with specified token
   # assumes positions is an array with either two 'X' or two 'O' and one blank
-  def takeLastSpot(positions, token)
+  def takeLastSpot(positions)
     i = 0
     until validMove?(positions[i])
       i += 1
     end
     # now i is location of unfilled win combo
-    move(positions[i], token)
+    move(positions[i], currentPlayer)
   end
 
   # check if there are two of the same letters within a row
-  def twoInARow(token)
+  # flag is true when we are looking for forks
+  def twoInARow?(token, flag)
 
+    fork = []
     WIN_COMBINATIONS.each do |win_combination|
       win_index_1 = win_combination[0]
       win_index_2 = win_combination[1]
@@ -200,7 +248,14 @@ class TicTacToe
       countOfLetterInRow = positions.count(token)
       emptySpaceAvaliable = positions.count(" ")
       if countOfLetterInRow == 2 && emptySpaceAvaliable == 1
-        return win_combination
+        if flag 
+          fork = fork + win_combination
+          if fork.size == 6 # we found 2 possible win combinations
+            return fork
+          end
+        else
+          return win_combination
+        end
       end
     end
     return false

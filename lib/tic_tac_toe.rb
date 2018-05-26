@@ -10,6 +10,8 @@ class TicTacToe
     [0, 4, 8],
     [6, 4, 2]
   ]
+  CORNERS = [0, 2, 6, 8]
+  SIDE_MIDDLE = [1, 3, 6, 7]
   
   def initialize
     @board = [" ", " ", " ", " ", " ", " ", " ", " ", " "]
@@ -33,11 +35,10 @@ class TicTacToe
   end
   
   def position_taken?(index)
-    
     !(@board[index].nil? || @board[index] == " ")
   end
   
-  def validMove?(index)
+  def validMove?(index) 
     if position_taken?(index) || !index.between?(0, 8)
       return false
     end
@@ -123,12 +124,14 @@ class TicTacToe
         turn
         if over?
           break
+        end
         botTurn
       else
         # bot then player
         botTurn
         if over?
           break
+        end
         turn
       end
     end
@@ -145,9 +148,10 @@ class TicTacToe
     # check if we can win with one move or need to block
     if positions = winOrBlock?(currentPlayer) || positions = winOrBlock?( (currentPlayer == 'X')? 'O' : 'X')
       takeLastSpot(positions)
-    # check if there is a chance for bot to create a fork, or block oponent from making fork 
+    
+      # check if there is a chance for bot to create a fork, or block oponent from making fork 
     elsif forks = possibleFork?(currentPlayer) || forks = possibleFork?((currentPlayer == 'X')? 'O' : 'X')
-      puts "forks is #{forks}"
+      
       
       if forks.size == 1
         # find the most common index and move there
@@ -158,14 +162,22 @@ class TicTacToe
         # find optimal block point, move there
         move(blockPoint(forks), currentPlayer)
       end
+    
+      # take the center if its available
+    elsif !position_taken?(4)
+      move(4, currentPlayer)
+    
+      # take an opposite corner from the oponent. If not available, take any corner
+    elsif corner = cornerMove
+      move(corner, currentPlayer)
+    
+      # play in a middle square on any of the sides 
     else
-      # testing just pick the next avaliable move
-      if !over?
-        i = 0
-        until validMove?(i) || over?
-          i += 1
+      SIDE_MIDDLE.each do |position|
+        if !position_taken?(position)
+          move(position, currentPlayer)
+          break
         end
-        move(i, currentPlayer)
       end
     end
     puts "#{(currentPlayer == 'X')? 'O': 'X'}'s move: "
@@ -173,6 +185,26 @@ class TicTacToe
   end
 
   # helper methods for the bot
+
+  
+  # return the corner opposiite oponent. If taken, returns any available corner
+  def cornerMove
+    # corners are 0 2 6 8
+    opponent = (currentPlayer == 'X')? 'O' : 'X' 
+    CORNERS.each_with_index do |corner, index|
+      if @board[corner] == opponent && !position_taken?(CORNER[( i + 2) % 4])
+        return CORNER[( i + 2) % 4]
+      end
+    end
+
+    # if here, then there is no opposite corner left to occupy, so any avaiable corner
+    CORNERS.each do |corner| 
+      if !position_taken?(corner) 
+        return corner
+      end
+    end
+    return false
+  end
 
   # finds the optimal place to put tile when multiple forks are possible
   def blockPoint(forks)
@@ -183,9 +215,7 @@ class TicTacToe
     for i in 1 ... forks.size
       commonIndicies &= forks[i]
     end
-    puts "commonIndices are: #{commonIndicies}"
     validPositions = commonIndicies.select {|i| !position_taken?(i)}
-    puts "validPositions are: #{validPositions}"
     # finds the most frequent index
     return validPositions.max_by {|i| validPositions.count(i)}
   end

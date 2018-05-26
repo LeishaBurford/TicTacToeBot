@@ -191,9 +191,9 @@ class TicTacToe
   def cornerMove
     # corners are 0 2 6 8
     opponent = (currentPlayer == 'X')? 'O' : 'X' 
-    CORNERS.each_with_index do |corner, index|
-      if @board[corner] == opponent && !position_taken?(CORNER[( i + 2) % 4])
-        return CORNER[( i + 2) % 4]
+    CORNERS.each_with_index do |corner, i|
+      if @board[corner] == opponent && !position_taken?(CORNERS[( i + 2) % 4])
+        return CORNERS[( i + 2) % 4]
       end
     end
 
